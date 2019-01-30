@@ -24,18 +24,17 @@
         <input type="textarea" class="form-control form-control-sm" size="90%" id="queryText" placeholder="Cypher Query" />
         <button type="button" class="btn btn-outline-primary btn-sm" id="btnSend">
           <i class="fa fa-check" aria-hidden="true"></i> Send&nbsp;
-        </button> &nbsp;
+        </button> &nbsp;&nbsp;
         <div class="form-group">
           <div class="custom-control custom-checkbox">
-            <input type="checkbox" class="custom-control-input" id="chkboxCypherQry">
+            <input type="checkbox" class="custom-control-input" id="chkboxCypherQry" value="1">
             <label class="custom-control-label" for="chkboxCypherQry"> Use Cypher Query</label>
-          </div>
+          </div>&nbsp;&nbsp;&nbsp;
           <div class="custom-control custom-checkbox">
-            <input type="checkbox" class="custom-control-input" id="chkboxLayoutQry">
+            <input type="checkbox" class="custom-control-input" id="chkboxLayoutQry" value ="0">
             <label class="custom-control-label" for="chkboxLayoutQry"> Sort By Venue</label>
           </div>
-        </div>
-        
+        </div>  
       </div>
     </div>
   </div>
@@ -99,7 +98,7 @@
       .on('start', drag_start)
       .on('drag', drag_move)
       .on('end', drag_end);
-    var toggle = 0;
+    var toggle = 1;
     var nodeCollisionRadius = 200;
     var timeMode = false;
 
@@ -461,10 +460,14 @@
           $('#queryText').prop('placeholder', 'Node Name');
       });
       $('#chkboxLayoutQry').change(function() {
-        if (this.checked)
+        if (this.checked) {
           timeMode = true;
-        else
+          promptAlert($('#graphContainer'), 'Sorting papers by year of publication.', false);
+        }
+        else {
           timeMode = false;
+          promptAlert($('#graphContainer'), 'Papers unsorted.', false)
+        }
       });
     });
   </script>
