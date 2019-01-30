@@ -1,0 +1,48 @@
+body {
+	padding-top: 15px;
+
+}
+
+#btnSend {
+	margin-left: 10px;
+}
+
+#propertiesBox {
+	padding: 20px;
+	display: box;
+	background-color: #383838;
+	position:fixed;
+	right:0;
+	top: 0;
+	width: 20%;
+	border: 0px solid #CCCCCC;
+	color: white;
+	font-family: Lucida Console, Lucida Sans Typewriter, monaco, Bitstream Vera Sans Mono, monospace;
+}
+
+svg {
+	border: 0px dashed #CCCCCC;
+}
+
+circle {
+	cursor: pointer;
+	stroke-width: 1.5px;
+}
+
+text {
+	font-family: Lucida Console, Lucida Sans Typewriter, monaco, Bitstream Vera Sans Mono, monospace;
+	color: white;
+	pointer-events: none;
+  	/*text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;*/
+}
+
+path {
+	stroke: #999;
+	stroke-width: 3.5px;
+  	fill: none;
+}
+
+#queryText {
+	font-family: Lucida Console, Lucida Sans Typewriter, monaco, Bitstream Vera Sans Mono, monospace;
+	font-size: 21px;
+}
