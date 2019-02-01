@@ -21,8 +21,9 @@
   <div class="container-fluid">
     <div class="row">
       <div class="col col-12 col-md-12 form-inline">
-        <input type="textarea" class="form-control form-control-sm" size="90%" id="queryText" placeholder="Cypher Query" />
-        <button type="button" class="btn btn-outline-primary btn-sm" id="btnSend">
+      	<img src="logo.png" height="150px">&nbsp;&nbsp;&nbsp;
+        <input type="textarea" class="form-control form-control-lg" size="90%" id="queryText" placeholder="Cypher Query" />
+        <button type="button" class="btn btn-outline-primary" id="btnSend">
           <i class="fa fa-check" aria-hidden="true"></i> Send&nbsp;
         </button> &nbsp;&nbsp;
         <div class="form-group">
@@ -31,8 +32,12 @@
             <label class="custom-control-label" for="chkboxCypherQry"> Use Cypher Query</label>
           </div>&nbsp;&nbsp;&nbsp;
           <div class="custom-control custom-checkbox">
-            <input type="checkbox" class="custom-control-input" id="chkboxLayoutQry" value ="0">
+            <input type="checkbox" class="custom-control-input" id="chkboxLayoutQry" value="0">
             <label class="custom-control-label" for="chkboxLayoutQry"> Sort By Venue</label>
+          </div>&nbsp;&nbsp;&nbsp;
+          <div class="custom-control custom-checkbox">
+            <input type="checkbox" class="custom-control-input" id="chkboxHighlightEdges" value="0">
+            <label class="custom-control-label" for="chkboxHighlightEdges"> Highlight Edges</label>
           </div>
         </div>  
       </div>
@@ -101,6 +106,7 @@
     var toggle = 1;
     var nodeCollisionRadius = 200;
     var timeMode = false;
+    var highlightMode = false;
 
 
     var zoom_handler = d3.zoom()
@@ -301,16 +307,19 @@
             .attr('fill', function(d) {return getColorBrighter(getItemColor(d));})
             .attr('stroke', function(d) {return getColorBrighter(getFirstStrokeColor(d));});
           showProperties(d);
-          var selectedNode = d;
-          var links;
-          Object.keys(linkItemMap).forEach(function(d) {
-            links = d3.select('#path-group').selectAll('path')
-              .filter(function(d) {
-                return d.source == selectedNode || d.target == selectedNode;
+          if (highlightMode) {
+          	var selectedNode = d;
+          	var links;
+          	Object.keys(linkItemMap).forEach(function(d) {
+          	  links = d3.select('#path-group').selectAll('path')
+          	    .filter(function(d) {
+          	      return d.source == selectedNode || d.target == selectedNode;
               })
-              .style('stroke-width', '10px')
-              .style('stroke', '#f4cb42');
+          	    .style('stroke-width', '10px')
+          	    .style('stroke', '#f4cb42');
           })
+          }
+          
         })
         .on('mouseout', function(d) {
           d3.select(this)
@@ -467,6 +476,16 @@
         else {
           timeMode = false;
           promptAlert($('#graphContainer'), 'Papers unsorted.', false)
+        }
+      });
+      $('#chkboxHighlightEdges').change(function() {
+        if (this.checked) {
+          highlightMode = true;
+          promptAlert($('#graphContainer'), 'Highlighting enabled: Hover over the nodes to highlight corresponding edges', false);
+        }
+        else {
+          highlightMode = false;
+          promptAlert($('#graphContainer'), 'Highlighting disabled.', false)
         }
       });
     });
