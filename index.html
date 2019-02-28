@@ -22,7 +22,7 @@
     <div class="row">
       <div class="col col-12 col-md-12 form-inline">
       	<img src="logo.png" height="150px">&nbsp;&nbsp;&nbsp;
-        <input type="textarea" class="form-control form-control-lg" size="90%" id="queryText" placeholder="Cypher Query" />
+        <input type="textarea" class="form-control form-control-lg" size="90%" id="queryText" placeholder="Cypher Query" value="mutation" />
         <button type="button" class="btn btn-outline-primary" id="btnSend">
           <i class="fa fa-check" aria-hidden="true"></i> Send&nbsp;
         </button> &nbsp;&nbsp;
@@ -38,6 +38,10 @@
           <div class="custom-control custom-checkbox">
             <input type="checkbox" class="custom-control-input" id="chkboxHighlightEdges" value="0">
             <label class="custom-control-label" for="chkboxHighlightEdges"> Highlight Edges</label>
+          </div>&nbsp;&nbsp;&nbsp;
+          <div class="custom-control custom-checkbox">
+            <input type="checkbox" class="custom-control-input" id="chkboxShowHighlights" value="0">
+            <label class="custom-control-label" for="chkboxShowHighlights"> Show Highlights</label>
           </div>
         </div>  
       </div>
@@ -84,8 +88,8 @@
     var familiarPaperSize = 50;
     var unfamiliarPaperSize = 25;
     var textPosOffsetY = 5;
-    var arrowWidth = 2;
-    var arrowHeight = 2;
+    var arrowWidth = 5;
+    var arrowHeight = 5;
     var linkForceSize = 100;
     //######################### variable #########################
     var nodeItemMap = {};
@@ -95,10 +99,11 @@
     var circleText;
     var lines;
     var lineText;
+    var highlightedLinks;
     var itemColorMap = {};
     var colorScale = d3.scaleOrdinal() // D3 Version 4
-      .domain(["familiarPaper", "unfamiliarPaper", "benchmark", "open source", "closed source", "unclassified"])
-      .range(["#528f7a", "#cebebb", "#2c4a5e", "#64e06d", "#f33b5d", "#ffffff"]);
+      .domain(["familiarPaper", "unfamiliarPaper", "benchmark", "open source", "closed source", "unclassified", "vanilla", "modified"])
+      .range(["#528f7a", "#cebebb", "#2c4a5e", "#64e06d", "#f33b5d", "#ffffff", "#cccccc", "#61ad22"]);
     var drag_handler = d3.drag()
       .on('start', drag_start)
       .on('drag', drag_move)
@@ -107,6 +112,7 @@
     var nodeCollisionRadius = 200;
     var timeMode = false;
     var highlightMode = false;
+    var showHighlights = false;
 
 
     var zoom_handler = d3.zoom()
@@ -154,8 +160,8 @@
 
     function initGraph() {
       var svg = d3.select('#resultSvg')
-        .attr("preserveAspectRatio", "xMinYMin slice")
-        .attr("viewBox", "0 0 300 300")
+        .attr("viewBox", "-2000 -2000 7000 6000")
+      submitQuery();
       var zoomGLayer = svg.append('g')
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
       var centerX = graphWidth / 2;
@@ -224,33 +230,22 @@
         targetPosX = d.target.properties.year*1000-2000000;
       }
 
-      var deltaX, deltaY, dist, cosTheta, sinTheta, sourceX, sourceY, targetX, targetY, sourceSize, targetSize;
-      sourceSize = familiarPaperSize;
-      targetSize = familiarPaperSize;
+      var offset = 80;
 
-      if (!d.source.properties.contribution)
-        sourceSize = unfamiliarPaperSize;
-      if (!d.target.properties.contribution)
-        targetSize = unfamiliarPaperSize;
+        var midpoint_x = (sourcePosX + targetPosX) / 2;
+        var midpoint_y = (d.source.y + d.target.y) / 2;
 
-      deltaX = targetPosX - sourcePosX;
-      deltaY = d.target.y - d.source.y;
-      dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-      cosTheta = deltaX / dist;
-      sinTheta = deltaY / dist;
-      sourceX = sourcePosX + (sourceSize * cosTheta);
-      sourceY = d.source.y + (sourceSize * sinTheta);
-      targetX = targetPosX - (targetSize * cosTheta),
-      targetY = d.target.y - (targetSize * sinTheta);
-      //Not use marker as IE does not support it and so embed the arrow in the path directly
-      var arrowLeftX, arrowLeftY, arrowRightX, arrowRightY;
-      arrowLeftX = targetX - (arrowHeight * sinTheta) - (arrowWidth * cosTheta);
-      arrowLeftY = targetY + (arrowHeight * cosTheta) - (arrowWidth * sinTheta);
-      arrowRightX = targetX + (arrowHeight * sinTheta) - (arrowWidth * cosTheta);
-      arrowRightY = targetY - (arrowHeight * cosTheta) - (arrowWidth * sinTheta);
-      return 'M' + sourceX + ' ' + sourceY + ' L' + targetX + ' ' + targetY
-        + ' M' + targetX + ' ' + targetY + ' L' + arrowLeftX + ' ' + arrowLeftY
-        + ' L' + arrowRightX + ' ' + arrowRightY + ' Z';
+        var dx = (targetPosX - sourcePosX);
+        var dy = (d.target.y - d.source.y);
+
+        var normalise = Math.sqrt((dx * dx) + (dy * dy));
+
+        var offSetX = midpoint_x + offset*(dy/normalise);
+        var offSetY = midpoint_y - offset*(dx/normalise);
+
+        return "M" + sourcePosX + "," + d.source.y +
+            "S" + offSetX + "," + offSetY +
+            " " + targetPosX + "," + d.target.y;
     }
 
     function clearProperties() {
@@ -274,7 +269,7 @@
 
     function updateGraph() {
       var d3LinkForce = d3.forceLink()
-        .distance(linkForceSize)
+        .distance(200)
         .links(mapToArray(linkItemMap))
         .id(function(d) {return d.id;})
         .strength(0.2);
@@ -282,9 +277,10 @@
 
       d3Simulation = d3.forceSimulation()
         //.force('chargeForce', d3.forceManyBody())
-        .force('collision', d3.forceCollide().radius(nodeCollisionRadius))
+        //.force('collision', d3.forceCollide().radius(12))
+        .force("charge", d3.forceManyBody().strength(-1000))
         .nodes(mapToArray(nodeItemMap))
-        .force('linkForce', d3LinkForce);
+        .force('linkForce', d3LinkForce)
 
           
       circles = d3.select('#circle-group').selectAll('circle')
@@ -307,16 +303,18 @@
             .attr('fill', function(d) {return getColorBrighter(getItemColor(d));})
             .attr('stroke', function(d) {return getColorBrighter(getFirstStrokeColor(d));});
           showProperties(d);
-          if (highlightMode) {
+          if (highlightMode || showHighlights) {
           	var selectedNode = d;
-          	var links;
           	Object.keys(linkItemMap).forEach(function(d) {
-          	  links = d3.select('#path-group').selectAll('path')
-          	    .filter(function(d) {
-          	      return d.source == selectedNode || d.target == selectedNode;
-              })
-          	    .style('stroke-width', '10px')
-          	    .style('stroke', '#f4cb42');
+              if (showHighlights || highlightMode) {
+                highlightedLinks = d3.select('#path-group').selectAll('path')
+                  .filter(function(d) {
+                    return d.source == selectedNode || d.target == selectedNode;
+                })
+                  .style('stroke-width', '10px')
+                  .style('stroke', '#f4cb42');
+              }
+          	  
           })
           }
           
@@ -325,6 +323,18 @@
           d3.select(this)
             .attr('fill', getItemColor)
             .attr('stroke', getFirstStrokeColor);
+        if (highlightMode) {
+          var selectedNode = d;
+            Object.keys(linkItemMap).forEach(function(d) {
+                highlightedLinks = d3.select('#path-group').selectAll('path')
+                  .filter(function(d) {
+                    return d.source == selectedNode || d.target == selectedNode;
+                })
+                  .style('stroke-width', '2.5px')
+                  .style('stroke', getBenchmarkTypeColor);
+              
+          })
+        }
         })
         .on('dblclick', function(d) {
           window.open(d.properties.url, '__blank');
@@ -339,6 +349,7 @@
         .merge(circleText);*/
       lines.exit().remove();
       lines = lines.enter().append('path')
+        .attr('stroke', getBenchmarkTypeColor)
         //.attr('marker-end', 'url(#end-arrow)')
         .on('mouseover', function(d) {
 
@@ -432,6 +443,16 @@
       }
     }
 
+    function classifyBenchmarkChoice(d) {
+      if (d.properties.dataset_state && d.type=="USES_BENCHMARK") {
+        if (d.properties.dataset_state == "modified")
+          return "modified";
+      } else {
+        return "vanilla";
+      }
+
+    }
+
     function getItemColor(d) {
       var nodeClass = classifyNodeFamiliarity(d);
       if (!(nodeClass in itemColorMap))
@@ -444,6 +465,13 @@
       if (!(nodeAvailability in itemColorMap))
         itemColorMap[nodeAvailability] = colorScale(nodeAvailability);
       return itemColorMap[nodeAvailability];
+    }
+
+    function getBenchmarkTypeColor(d) {
+      var benchmarkState = classifyBenchmarkChoice(d);
+      if (!(benchmarkState in itemColorMap))
+        itemColorMap[benchmarkState] = colorScale(benchmarkState);
+      return itemColorMap[benchmarkState];
     }
 
     function getColorBrighter(targetColor) {
@@ -486,6 +514,16 @@
         else {
           highlightMode = false;
           promptAlert($('#graphContainer'), 'Highlighting disabled.', false)
+        }
+      });
+      $('#chkboxShowHighlights').change(function() {
+        if (this.checked) {
+          showHighlights = true;
+          promptAlert($('#graphContainer'), 'Highlights emphasized.', false);
+        }
+        else {
+          showHighlights = false;
+          promptAlert($('#graphContainer'), 'Highlights back to normal.', false)
         }
       });
     });
