@@ -8,20 +8,68 @@ body {
 }
 
 #propertiesBox {
+	z-index: 2;
 	padding: 20px;
 	display: box;
 	background-color: #383838;
 	position:fixed;
 	right:0;
-	top: 0;
+	top: 10%;
 	width: 20%;
 	border: 0px solid #CCCCCC;
 	color: white;
 	font-family: Lucida Console, Lucida Sans Typewriter, monaco, Bitstream Vera Sans Mono, monospace;
 }
 
+#inspectionBox {
+	z-index: 1;
+	padding: 20px;
+	display: box;
+	background-color: #383838;
+	position:fixed;
+	right:0;
+	bottom: 0;
+	width: 0%;
+	border: 0px solid #CCCCCC;
+	color: white;
+	font-family: Lucida Console, Lucida Sans Typewriter, monaco, Bitstream Vera Sans Mono, monospace;
+	transition: .2s;
+}
+
+#legendBox {
+	z-index: 1;
+	padding: 20px;
+	display: box;
+	background-color: #383838;
+	position:fixed;
+	left:0;
+	bottom: 0;
+	width: 20%;
+	border: 0px solid #CCCCCC;
+	color: white;
+	font-family: Lucida Console, Lucida Sans Typewriter, monaco, Bitstream Vera Sans Mono, monospace;
+	transition: .2s;
+}
+
+h1,h2,h3 {
+	color: white;
+}
+
 svg {
 	border: 0px dashed #CCCCCC;
+}
+
+.dot {
+	height: 1em;
+	width: 1em;
+  	border-radius: 50%;
+  	display: inline-block;
+}
+
+.stick {
+	height: 0.2em;
+	width: 1em;
+  	display: inline-block;
 }
 
 circle {
@@ -29,6 +77,7 @@ circle {
 	stroke-width: 1.5px;
 	box-shadow: 0 0 0 5px red, 0 0 0 10px white, 0 0 0 15px red;
 	transition: .3s;
+	opacity: .8;
 }
 
 text {
@@ -42,6 +91,8 @@ path {
 	stroke: #cccccc;
 	stroke-width: 3.5px;
   	fill: none;
+  	opacity: .8;
+  	transition: .3s;
 }
 
 #queryText {

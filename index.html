@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <meta name="description" content="A d3js visualization of test-related papers for neo4j">
   <meta name="author" content="Artur Solomonik">
-  <meta name="author" content="Mic Wan">
 
   <title>Testing paper visualization</title>
 
@@ -22,13 +21,16 @@
     <div class="row">
       <div class="col col-12 col-md-12 form-inline">
       	<img src="logo.png" height="150px">&nbsp;&nbsp;&nbsp;
-        <input type="textarea" class="form-control form-control-lg" size="90%" id="queryText" placeholder="Cypher Query" value="mutation" />
+        <input type="textarea" class="form-control form-control-lg" size="90%" id="queryText" placeholder="Cypher Query" value="MATCH n = ({contribution: 'mutation testing'})-->() return n" />
         <button type="button" class="btn btn-outline-primary" id="btnSend">
           <i class="fa fa-check" aria-hidden="true"></i> Send&nbsp;
         </button> &nbsp;&nbsp;
+        <button type="button" class="btn btn-outline-primary" id="btnSave">
+          <i class="fa fa-save" aria-hidden="true"></i> Save Query&nbsp;
+        </button> &nbsp;&nbsp;
         <div class="form-group">
           <div class="custom-control custom-checkbox">
-            <input type="checkbox" class="custom-control-input" id="chkboxCypherQry" value="1">
+            <input type="checkbox" class="custom-control-input" id="chkboxCypherQry" value="1" checked>
             <label class="custom-control-label" for="chkboxCypherQry"> Use Cypher Query</label>
           </div>&nbsp;&nbsp;&nbsp;
           <div class="custom-control custom-checkbox">
@@ -37,11 +39,11 @@
           </div>&nbsp;&nbsp;&nbsp;
           <div class="custom-control custom-checkbox">
             <input type="checkbox" class="custom-control-input" id="chkboxHighlightEdges" value="0">
-            <label class="custom-control-label" for="chkboxHighlightEdges"> Highlight Edges</label>
+            <label class="custom-control-label" for="chkboxHighlightEdges"> Temporary Highlighting</label>
           </div>&nbsp;&nbsp;&nbsp;
           <div class="custom-control custom-checkbox">
             <input type="checkbox" class="custom-control-input" id="chkboxShowHighlights" value="0">
-            <label class="custom-control-label" for="chkboxShowHighlights"> Show Highlights</label>
+            <label class="custom-control-label" for="chkboxShowHighlights"> Permanent Highlighting</label>
           </div>
         </div>  
       </div>
@@ -60,6 +62,29 @@
       <div class="col col-12 col-md-12">
         <div id="propertiesBox">
         </div>
+        <div id="inspectionBox">
+        </div>
+        <div id="legendBox">
+          <h1><b>Te</b>sting <b>L</b>iterature <b>O</b>verview <b>S</b>ystem</h1>
+          <p>This visualization showcases the referencing schemes between a selection of testing papers. Make sure to use a neo4j server as a backend to make us of the CYPHER-based querying. Nodes can be freely dragged and fixed. Clicking the Nodes will reveal further information about the Paper, while doubleclicking will direct you to the location of the pdf file (which is currently in the webis GitLab.</p>
+          <h3>Nodes</h3>
+          <ul>
+            <li><span style="background-color: #528f7a" class="dot"></span> : Classified testing publication</li>
+            <li><span style="background-color: #cebebb" class="dot"></span> : Unclassified testing publication</li>
+            <li><span style="background-color: #528f7a; border: 1px solid #f33b5d" class="dot"></span> : Publication with a closed-source / unaccessible framework</li>
+            <li><span style="background-color: #528f7a; border: 1px solid #64e06d" class="dot"></span> : Publication with an open-source / accessible framework</li>
+            <li><span style="background-color: #2c4a5e" class="dot"></span> : Benchmark used in the evaluation of a paper</li>
+          </ul>
+          <h3>Links</h3>
+          <ul>
+            <li><span style="background-color: #cccccc" class="stick"></span> : Simple reference between two papers</li>
+            <li><span style="background-color: #bc4757" class="stick"></span> : Citation (This paper was referenced by these publications)</li>
+            <li><span style="background-color: #68524e" class="stick"></span> : Transitive Reference (This paper is connected to a paper by another possibly unclassified node)</li>
+            <li><span style="background-color: #ffe7a0" class="stick"></span> : Highlighted reference</li>
+            <li><span style="background-color: #cccccc" class="stick"></span> : Unmodified use of a Benchmark</li>
+            <li><span style="background-color: #61ad22" class="stick"></span> : Modified use of a Benchmark</li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>
@@ -70,6 +95,7 @@
   <script src="js/bootstrap.min.js"></script>
   <script src="js/d3.v5.min.js"></script>
   <script src="js/d3js-example-neo4j.js"></script>
+  <script src="js/FileSaver.js"></script>
   <script src="https://cdn.rawgit.com/upphiminn/d3.ForceBundle/2b406b8567fcad0a6c2922c84cd4bceb0c374bc5/d3-ForceEdgeBundling.js"></script>
   <script type="text/javascript">
     "use strict";
@@ -113,6 +139,7 @@
     var timeMode = false;
     var highlightMode = false;
     var showHighlights = false;
+    var fbundling = d3.ForceEdgeBundling();
 
 
     var zoom_handler = d3.zoom()
@@ -160,7 +187,7 @@
 
     function initGraph() {
       var svg = d3.select('#resultSvg')
-        .attr("viewBox", "-2000 -2000 7000 6000")
+        .attr("viewBox", "-8000 -6000 24000 24000")
       submitQuery();
       var zoomGLayer = svg.append('g')
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
@@ -229,27 +256,46 @@
         sourcePosX = d.source.properties.year*1000-2000000;
         targetPosX = d.target.properties.year*1000-2000000;
       }
-
-      var offset = 80;
-
-        var midpoint_x = (sourcePosX + targetPosX) / 2;
-        var midpoint_y = (d.source.y + d.target.y) / 2;
-
-        var dx = (targetPosX - sourcePosX);
-        var dy = (d.target.y - d.source.y);
-
-        var normalise = Math.sqrt((dx * dx) + (dy * dy));
-
-        var offSetX = midpoint_x + offset*(dy/normalise);
-        var offSetY = midpoint_y - offset*(dx/normalise);
-
-        return "M" + sourcePosX + "," + d.source.y +
-            "S" + offSetX + "," + offSetY +
-            " " + targetPosX + "," + d.target.y;
+      var deltaX, deltaY, dist, cosTheta, sinTheta, sourceX, sourceY, targetX, targetY, sourceSize, targetSize;
+      sourceSize = familiarPaperSize;
+      targetSize = familiarPaperSize;
+      if (!d.source.properties.contribution)
+        sourceSize = unfamiliarPaperSize;
+      if (!d.target.properties.contribution)
+        targetSize = unfamiliarPaperSize;
+      deltaX = targetPosX - sourcePosX;
+      deltaY = d.target.y - d.source.y;
+      dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      cosTheta = deltaX / dist;
+      sinTheta = deltaY / dist;
+      sourceX = sourcePosX + (sourceSize * cosTheta);
+      sourceY = d.source.y + (sourceSize * sinTheta);
+      targetX = targetPosX - (targetSize * cosTheta),
+      targetY = d.target.y - (targetSize * sinTheta);
+      //Not use marker as IE does not support it and so embed the arrow in the path directly
+      var arrowLeftX, arrowLeftY, arrowRightX, arrowRightY;
+      arrowLeftX = targetX - (arrowHeight * sinTheta) - (arrowWidth * cosTheta);
+      arrowLeftY = targetY + (arrowHeight * cosTheta) - (arrowWidth * sinTheta);
+      arrowRightX = targetX + (arrowHeight * sinTheta) - (arrowWidth * cosTheta);
+      arrowRightY = targetY - (arrowHeight * cosTheta) - (arrowWidth * sinTheta);
+      return 'M' + sourceX + ' ' + sourceY + ' L' + targetX + ' ' + targetY
+        + ' M' + targetX + ' ' + targetY + ' L' + arrowLeftX + ' ' + arrowLeftY
+        + ' L' + arrowRightX + ' ' + arrowRightY + ' Z';
     }
 
     function clearProperties() {
       $('#propertiesBox').empty();
+    }
+
+    function clearInspection() {
+      d3.select('#path-group').selectAll('path')
+        .style('stroke-width', '2.5px')
+        .style('stroke', getBenchmarkTypeColor);
+
+      d3.select('#circle-group').selectAll('circle')
+        .style('opacity', 0.8);
+
+      $('#inspectionBox').empty();
     }
 
     function showProperties(d) {
@@ -311,13 +357,22 @@
                   .filter(function(d) {
                     return d.source == selectedNode || d.target == selectedNode;
                 })
-                  .style('stroke-width', '10px')
-                  .style('stroke', '#f4cb42');
+                  .style('stroke-width', '8px')
+                  .style('stroke', '#ffe7a0');
               }
           	  
           })
           }
           
+        })
+        .on('click', function(d) {
+          $('#inspectionBox').css({
+            'width': '80%'
+        });
+          clearInspection();
+          inspect(d);
+          d3.select(this).style('opacity', 1.0);
+
         })
         .on('mouseout', function(d) {
           d3.select(this)
@@ -347,7 +402,10 @@
         .attr('text-anchor', 'middle')
         .text(function(d) {return d.properties.id;})
         .merge(circleText);*/
-      lines.exit().remove();
+      var link = d3.select('#path-group').selectAll('path')
+      .data(fbundling());
+
+      link.exit().remove();
       lines = lines.enter().append('path')
         .attr('stroke', getBenchmarkTypeColor)
         //.attr('marker-end', 'url(#end-arrow)')
@@ -362,6 +420,67 @@
           unfreezeItms();
         });*/
     }
+
+    function inspect(d) {
+      var inspectedNode = d.properties;
+      var usesBenchmarks = 0;
+
+      $('#inspectionBox').append($('<p></p>').text('This is a ' + inspectedNode.contribution + ' paper called "' + inspectedNode.title + '" from ' + inspectedNode.year));
+      Object.keys(linkItemMap).forEach(function(d) {
+        var benchmarkLinks = d3.select('#path-group').selectAll('path')
+          .filter(function(d) {
+            return (d.target.labels[0] == 'Benchmark' && d.source.properties.title == inspectedNode.title);
+          });
+          usesBenchmarks = benchmarkLinks.size();
+      })
+      $('#inspectionBox').append($('<p></p>').text('The evaluation ist based on ' + inspectedNode.subcheck_systems + ' Subcheck system(s) of which ' + usesBenchmarks + ' are documented.'));
+      
+      var wasReferenced = 0;
+      var doesReference = 0;
+      
+
+      Object.keys(linkItemMap).forEach(function(d) {
+        var targetLinks = d3.select('#path-group').selectAll('path')
+          .filter(function(d) {
+            return d.target.properties.title == inspectedNode.title;
+          }).style('stroke', '#bc4757')
+            .style('stroke-width', '5px');
+          wasReferenced = targetLinks.size();
+      })
+
+      Object.keys(linkItemMap).forEach(function(d) {
+        var sourceLinks = d3.select('#path-group').selectAll('path')
+          .filter(function(d) {
+            return d.source.properties.title == inspectedNode.title;
+          });
+          doesReference = sourceLinks.size();
+
+      })
+      $('#inspectionBox').append($('<p></p>').text('The paper mentions ' + doesReference + ' paper(s).'));
+
+      $('#inspectionBox').append($('<p></p>').text('The paper was mentioned by other publication ' + wasReferenced + ' time(s).'));
+
+      var transLinksCount = 0;
+
+      Object.keys(linkItemMap).forEach(function(d) {
+        var transitiveLinks = d3.select('#path-group').selectAll('path')
+          .filter(function(d) {
+            return d.source.properties.title == inspectedNode.title;
+          });
+        transitiveLinks.each(function(d) {
+          var l = d;
+          var transLinks = d3.select('#path-group').selectAll('path').filter(function(d) {
+            return l.target == d.target;
+          }).style('stroke','#68524e').style('stroke-width','5px');
+          transLinksCount = transLinks.size();
+        })
+        
+      })
+      if(transLinksCount)
+        $('#inspectionBox').append($('<p></p>').text('The paper has transitive connections to other publications. They are currently highlighted.'));
+
+    }
+
     function submitQuery(nodeID) {
       removeAlert();
       var queryStr = null;
@@ -423,7 +542,6 @@
         promptAlert($('#graphContainer'), 'Error: submitted query text but got error return (' + data + ')', true);
       });
     }
-
     function classifyNodeFamiliarity(d) {
       if (d.properties.contribution)
         return "familiarPaper"
