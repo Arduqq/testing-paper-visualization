@@ -1,5 +1,6 @@
 body {
 	padding-top: 15px;
+	overflow-wrap: none;
 
 }
 
@@ -11,10 +12,9 @@ body {
 	z-index: 2;
 	padding: 20px;
 	display: box;
-	background-color: #383838;
 	position:fixed;
 	right:0;
-	top: 10%;
+	top: 2%;
 	width: 20%;
 	border: 0px solid #CCCCCC;
 	color: white;
@@ -45,10 +45,16 @@ body {
 	left:0;
 	bottom: 0;
 	width: 20%;
+	height: 30%;
 	border: 0px solid #CCCCCC;
 	color: white;
 	font-family: Lucida Console, Lucida Sans Typewriter, monaco, Bitstream Vera Sans Mono, monospace;
 	transition: .2s;
+	overflow-y: scroll;
+}
+
+#legendbox li {
+	text-decoration: none;
 }
 
 h1,h2,h3 {
@@ -77,7 +83,7 @@ circle {
 	stroke-width: 1.5px;
 	box-shadow: 0 0 0 5px red, 0 0 0 10px white, 0 0 0 15px red;
 	transition: .3s;
-	opacity: .8;
+	opacity: 1;
 }
 
 text {

@@ -34,16 +34,20 @@
             <label class="custom-control-label" for="chkboxCypherQry"> Use Cypher Query</label>
           </div>&nbsp;&nbsp;&nbsp;
           <div class="custom-control custom-checkbox">
-            <input type="checkbox" class="custom-control-input" id="chkboxLayoutQry" value="0">
+            <input type="checkbox" class="custom-control-input" id="chkboxLayoutQry" value="0" unchecked>
             <label class="custom-control-label" for="chkboxLayoutQry"> Sort By Venue</label>
           </div>&nbsp;&nbsp;&nbsp;
           <div class="custom-control custom-checkbox">
-            <input type="checkbox" class="custom-control-input" id="chkboxHighlightEdges" value="0">
+            <input type="checkbox" class="custom-control-input" id="chkboxHighlightEdges" value="0" unchecked>
             <label class="custom-control-label" for="chkboxHighlightEdges"> Temporary Highlighting</label>
           </div>&nbsp;&nbsp;&nbsp;
           <div class="custom-control custom-checkbox">
-            <input type="checkbox" class="custom-control-input" id="chkboxShowHighlights" value="0">
+            <input type="checkbox" class="custom-control-input" id="chkboxShowHighlights" value="0" unchecked>
             <label class="custom-control-label" for="chkboxShowHighlights"> Permanent Highlighting</label>
+          </div>&nbsp;&nbsp;&nbsp;
+          <div class="custom-control custom-checkbox">
+            <input type="checkbox" class="custom-control-input" id="chkboxActivateColor" value="0" unchecked>
+            <label class="custom-control-label" for="chkboxActivateColor"> Color Nodes by Contribution</label>
           </div>
         </div>  
       </div>
@@ -55,28 +59,34 @@
   <div class="container-fluid">
     <div class="row">
       <div class="col col-12 col-md-12" id="graphContainer">
-        <svg id="resultSvg"></svg>
+        <svg id="resultSvg"/>
       </div>
     </div>
     <div class="row">
       <div class="col col-12 col-md-12">
         <div id="propertiesBox">
+          <svg id="propertySvg"/>
         </div>
         <div id="inspectionBox">
         </div>
         <div id="legendBox">
           <h1><b>Te</b>sting <b>L</b>iterature <b>O</b>verview <b>S</b>ystem</h1>
-          <p>This visualization showcases the referencing schemes between a selection of testing papers. Make sure to use a neo4j server as a backend to make us of the CYPHER-based querying. Nodes can be freely dragged and fixed. Clicking the Nodes will reveal further information about the Paper, while doubleclicking will direct you to the location of the pdf file (which is currently in the webis GitLab.</p>
+          <p>This visualization showcases the referencing schemes between a selection of testing papers. Make sure to use a neo4j server as a backend to make us of the CYPHER-based querying. Nodes can be freely dragged and fixed. Clicking the Nodes will reveal further information about the Paper, while double-clicking will direct you to the location of the pdf file (which is currently in the webis GitLab. Right-clicking a node will query after a new graph showcasing nodes that might be relevant to the selected one.</p>
           <h3>Nodes</h3>
-          <ul>
+          <ul class="list-unstyled">
             <li><span style="background-color: #528f7a" class="dot"></span> : Classified testing publication</li>
             <li><span style="background-color: #cebebb" class="dot"></span> : Unclassified testing publication</li>
             <li><span style="background-color: #528f7a; border: 1px solid #f33b5d" class="dot"></span> : Publication with a closed-source / unaccessible framework</li>
             <li><span style="background-color: #528f7a; border: 1px solid #64e06d" class="dot"></span> : Publication with an open-source / accessible framework</li>
             <li><span style="background-color: #2c4a5e" class="dot"></span> : Benchmark used in the evaluation of a paper</li>
+            <li><span style="background-color: #80afcc" class="dot"></span> : Evaluation compares former results to the new ones</li>
+            <li><span style="background-color: #8391d1" class="dot"></span> : Evaluation compares different parallel implementations of one tool</li>
+            <li><span style="background-color: #9270bf" class="dot"></span> : Evaluation compares the framework to other frameworks of different authors</li>
+            <li><span style="background-color: #ffd42b" class="dot"></span> : Evaluation does not compare any tools or was not classified yet</li>
+
           </ul>
           <h3>Links</h3>
-          <ul>
+          <ul class="list-unstyled">
             <li><span style="background-color: #cccccc" class="stick"></span> : Simple reference between two papers</li>
             <li><span style="background-color: #bc4757" class="stick"></span> : Citation (This paper was referenced by these publications)</li>
             <li><span style="background-color: #68524e" class="stick"></span> : Transitive Reference (This paper is connected to a paper by another possibly unclassified node)</li>
@@ -108,7 +118,10 @@
     innerHeight = outerHeight - margin.top - margin.bottom,
     graphWidth = innerWidth - padding.left - padding.right,
     graphHeight = innerHeight - padding.top - padding.bottom;
-    var neo4jAPIURL = 'http://localhost:7474/db/data/transaction/commit';
+    var pie_width = 450;
+    var pie_height = 450;
+    var pie_margin = 40;
+    var neo4jAPIURL = 'http://webislab10.medien.uni-weimar.de:7474/db/data/transaction/commit';
     var neo4jLogin = 'neo4j';
     var neo4jPassword = 'erdehaus16';
     var familiarPaperSize = 50;
@@ -127,19 +140,24 @@
     var lineText;
     var highlightedLinks;
     var itemColorMap = {};
+    var pieColor = d3.scaleOrdinal(d3.schemeCategory20)
+      .domain(["mutation testing", "mobile testing", "static analysis", "performance testing", "test generation", "test selection", "data flow testing", "test prioritization", "gui testing", "concolic execution", "acceptance testing", "sysmbolic execution", "test case derivation", "multithreaded testing", "symbolic execution", "regression testing"])
+      .range(['#440256','#451d63','#45306e','#434279','#405281','#396289','#2f748d','#33838a','#459283','#5aa17b','#6eaf72','#84bc68','#9ec85c','#b9d44f','#dadf3e','#fde725']);
     var colorScale = d3.scaleOrdinal() // D3 Version 4
-      .domain(["familiarPaper", "unfamiliarPaper", "benchmark", "open source", "closed source", "unclassified", "vanilla", "modified"])
-      .range(["#528f7a", "#cebebb", "#2c4a5e", "#64e06d", "#f33b5d", "#ffffff", "#cccccc", "#61ad22"]);
+      .domain(["familiarPaper", "unfamiliarPaper", "benchmark", "open source", "closed source", "unclassified", "vanilla", "modified", "highlightonly", "former", "parallel", "foreign"])
+      .range(["#528f7a", "#cebebb", "#2c4a5e", "#35c48f", "#f33b5d", "#000000", "#cccccc", "#61ad22", "#ffd42b", "#80afcc", "#8391d1", "#9270bf"]);
     var drag_handler = d3.drag()
       .on('start', drag_start)
       .on('drag', drag_move)
       .on('end', drag_end);
     var toggle = 1;
-    var nodeCollisionRadius = 200;
+    var nodeCollisionRadius = 500;
     var timeMode = false;
     var highlightMode = false;
     var showHighlights = false;
+    var colorMode = false;
     var fbundling = d3.ForceEdgeBundling();
+    var contributionDist = {};
 
 
     var zoom_handler = d3.zoom()
@@ -226,8 +244,7 @@
       circles.attr('transform', transform);
       circleText.attr('transform', transform);
       lineText.attr('transform', transformPathLabel);
-
-        lines.attr('d', drawLine);
+      lines.attr('d', drawLine);
     }
 
     function transformPathLabel(d) {
@@ -256,35 +273,21 @@
         sourcePosX = d.source.properties.year*1000-2000000;
         targetPosX = d.target.properties.year*1000-2000000;
       }
-      var deltaX, deltaY, dist, cosTheta, sinTheta, sourceX, sourceY, targetX, targetY, sourceSize, targetSize;
-      sourceSize = familiarPaperSize;
-      targetSize = familiarPaperSize;
-      if (!d.source.properties.contribution)
-        sourceSize = unfamiliarPaperSize;
-      if (!d.target.properties.contribution)
-        targetSize = unfamiliarPaperSize;
-      deltaX = targetPosX - sourcePosX;
-      deltaY = d.target.y - d.source.y;
-      dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-      cosTheta = deltaX / dist;
-      sinTheta = deltaY / dist;
-      sourceX = sourcePosX + (sourceSize * cosTheta);
-      sourceY = d.source.y + (sourceSize * sinTheta);
-      targetX = targetPosX - (targetSize * cosTheta),
-      targetY = d.target.y - (targetSize * sinTheta);
-      //Not use marker as IE does not support it and so embed the arrow in the path directly
-      var arrowLeftX, arrowLeftY, arrowRightX, arrowRightY;
-      arrowLeftX = targetX - (arrowHeight * sinTheta) - (arrowWidth * cosTheta);
-      arrowLeftY = targetY + (arrowHeight * cosTheta) - (arrowWidth * sinTheta);
-      arrowRightX = targetX + (arrowHeight * sinTheta) - (arrowWidth * cosTheta);
-      arrowRightY = targetY - (arrowHeight * cosTheta) - (arrowWidth * sinTheta);
-      return 'M' + sourceX + ' ' + sourceY + ' L' + targetX + ' ' + targetY
-        + ' M' + targetX + ' ' + targetY + ' L' + arrowLeftX + ' ' + arrowLeftY
-        + ' L' + arrowRightX + ' ' + arrowRightY + ' Z';
+            var offset = 80;
+        var midpoint_x = (sourcePosX + targetPosX) / 2;
+        var midpoint_y = (d.source.y + d.target.y) / 2;
+        var dx = (targetPosX - sourcePosX);
+        var dy = (d.target.y - d.source.y);
+        var normalise = Math.sqrt((dx * dx) + (dy * dy));
+        var offSetX = midpoint_x + offset*(dy/normalise);
+        var offSetY = midpoint_y - offset*(dx/normalise);
+        return "M" + sourcePosX + "," + d.source.y +
+            "S" + offSetX + "," + offSetY +
+            " " + targetPosX + "," + d.target.y;
     }
 
     function clearProperties() {
-      $('#propertiesBox').empty();
+      //$('#propertiesBox').empty();
     }
 
     function clearInspection() {
@@ -293,27 +296,28 @@
         .style('stroke', getBenchmarkTypeColor);
 
       d3.select('#circle-group').selectAll('circle')
-        .style('opacity', 0.8);
+        .style('stroke-width', '1.5px')
+        .attr('r', function(d)
+          { if (d.properties.contribution) { return familiarPaperSize } else { return unfamiliarPaperSize } }
+        )
+        .attr('fill', function(d) 
+          { if (!colorMode) { return getItemColor(d) } else { return getPieColor(d.properties.contribution) } }
+        );
 
       $('#inspectionBox').empty();
     }
 
-    function showProperties(d) {
+    function showProperties() {
       clearProperties();
-      var propertiesText = 'id: ' + d.id;
-      //For nodes
-      if (d.labels != null)
-        propertiesText += ', labels: ' + d.labels.join(', ');
-      //For links
-      if (d.type != null)
-        propertiesText += ', type: ' + d.type;
-      $.map(d.properties, function(value, key) {
-        propertiesText += ', ' + key + ': ' + value;
+      var value;
+      Object.keys(contributionDist).forEach(function(d) {
+        value = contributionDist[d];
+        //$('#propertiesBox').append($('<p></p>').text(d + ' - ' + value));
       });
-      $('#propertiesBox').append($('<p></p>').text(propertiesText));
     }
 
     function updateGraph() {
+      updatePie();
       var d3LinkForce = d3.forceLink()
         .distance(200)
         .links(mapToArray(linkItemMap))
@@ -341,14 +345,13 @@
       circles = circles.enter().append('circle')
         .attr('r', function(d)
         	{if (d.properties.contribution) {return familiarPaperSize} else { return unfamiliarPaperSize}})
-        .attr('fill', getItemColor)
+        .attr('fill', function(d) 
+          { if (!colorMode) { return getItemColor(d) } else { return getPieColor(d.properties.contribution) } }
+        )
         .attr('stroke', getFirstStrokeColor)
         .call(drag_handler)
         .on('mouseover', function(d) {
-          d3.select(this)
-            .attr('fill', function(d) {return getColorBrighter(getItemColor(d));})
-            .attr('stroke', function(d) {return getColorBrighter(getFirstStrokeColor(d));});
-          showProperties(d);
+          showProperties();
           if (highlightMode || showHighlights) {
           	var selectedNode = d;
           	Object.keys(linkItemMap).forEach(function(d) {
@@ -368,16 +371,31 @@
         .on('click', function(d) {
           $('#inspectionBox').css({
             'width': '80%'
-        });
+          });
           clearInspection();
           inspect(d);
-          d3.select(this).style('opacity', 1.0);
+          d3.select(this)
+            .style('stroke-width', 20)
+            .attr('fill', getComparisonTypeColor)
+            .attr('r', 100);
 
         })
+        .on("contextmenu", function (d, i) {
+          d3.event.preventDefault();
+          $('#inspectionBox').css({
+            'width': '80%'
+          });
+          var selectedNode = d;
+          document.getElementById('queryText').value = "MATCH n = ({title: '"+ d.properties.title +"'})--()--() return n";
+          submitQuery();
+          Object.keys(nodeItemMap).forEach(function(d) {
+            d3.select('#path-group').selectAll('path')
+              .filter(function(d) {
+                return d.source.properties.title == selectedNode.properties.title;
+            }).style('stroke', 'black');
+          });
+        })
         .on('mouseout', function(d) {
-          d3.select(this)
-            .attr('fill', getItemColor)
-            .attr('stroke', getFirstStrokeColor);
         if (highlightMode) {
           var selectedNode = d;
             Object.keys(linkItemMap).forEach(function(d) {
@@ -409,10 +427,6 @@
       lines = lines.enter().append('path')
         .attr('stroke', getBenchmarkTypeColor)
         //.attr('marker-end', 'url(#end-arrow)')
-        .on('mouseover', function(d) {
-
-          showProperties(d);
-        })
         .merge(lines);
       d3Simulation
         .on('tick', tick)
@@ -439,6 +453,7 @@
       var doesReference = 0;
       
 
+      //Highlight "referenced by X" links
       Object.keys(linkItemMap).forEach(function(d) {
         var targetLinks = d3.select('#path-group').selectAll('path')
           .filter(function(d) {
@@ -448,6 +463,7 @@
           wasReferenced = targetLinks.size();
       })
 
+      // Highlight "referencing X" links
       Object.keys(linkItemMap).forEach(function(d) {
         var sourceLinks = d3.select('#path-group').selectAll('path')
           .filter(function(d) {
@@ -460,6 +476,7 @@
 
       $('#inspectionBox').append($('<p></p>').text('The paper was mentioned by other publication ' + wasReferenced + ' time(s).'));
 
+      // Highlight transitive links
       var transLinksCount = 0;
 
       Object.keys(linkItemMap).forEach(function(d) {
@@ -472,17 +489,18 @@
           var transLinks = d3.select('#path-group').selectAll('path').filter(function(d) {
             return l.target == d.target;
           }).style('stroke','#68524e').style('stroke-width','5px');
-          transLinksCount = transLinks.size();
-        })
+          transLinksCount = transitiveLinks.size();
+          
+        });
         
-      })
+      });
       if(transLinksCount)
-        $('#inspectionBox').append($('<p></p>').text('The paper has transitive connections to other publications. They are currently highlighted.'));
-
+        $('#inspectionBox').append($('<p></p>').text('The paper has ' + transLinksCount + ' transitive connections  to other publications. They are currently highlighted. '));
     }
 
     function submitQuery(nodeID) {
       removeAlert();
+      contributionDist = {};
       var queryStr = null;
       if (nodeID == null || !nodeID) {
         queryStr = $.trim($('#queryText').val());
@@ -499,49 +517,62 @@
         nodeItemMap = {};
         linkItemMap = {};
       }
-      var jqxhr = $.post(neo4jAPIURL, '{"statements":[{"statement":"' + queryStr + '", "resultDataContents":["graph"]}]}', 
-        function(data) {
-          //console.log(JSON.stringify(data));
-          if (data.errors != null && data.errors.length > 0) {
-            promptAlert($('#graphContainer'), 'Error: ' + data.errors[0].message + '(' + data.errors[0].code + ')', true);
-            return;
-          }
-          if (data.results != null && data.results.length > 0 && data.results[0].data != null && data.results[0].data.length > 0) {
-            var neo4jDataItmArray = data.results[0].data;
-            neo4jDataItmArray.forEach(function(dataItem) {
-              //Node
-              if (dataItem.graph.nodes != null && dataItem.graph.nodes.length > 0) {
-                var neo4jNodeItmArray = dataItem.graph.nodes;
-                neo4jNodeItmArray.forEach(function(nodeItm) {
-                  if (!(nodeItm.id in nodeItemMap))
-                    nodeItemMap[nodeItm.id] = nodeItm;
-                });
-              }
-              //Link
-              if (dataItem.graph.relationships != null && dataItem.graph.relationships.length > 0) {
-                var neo4jLinkItmArray = dataItem.graph.relationships;
-                neo4jLinkItmArray.forEach(function(linkItm) {
-                  if (!(linkItm.id in linkItemMap)) {
-                    linkItm.source = linkItm.startNode;
-                    linkItm.target = linkItm.endNode;
-                    linkItemMap[linkItm.id] = linkItm;
-                  }
-                });
-              }
+
+       var body = JSON.stringify({
+            statements: [{
+                statement:  queryStr,
+                resultDataContents:["graph"]
+                }]
             });
-            console.log('nodeItemMap.size:' + Object.keys(nodeItemMap).length);
-            console.log('linkItemMap.size:' + Object.keys(linkItemMap).length);
-            updateGraph();
-            return;
-          }
-          //also update graph when empty
-          updateGraph();
-          promptAlert($('#graphContainer'), 'No record found !', false);
-        }, 'json');
-      jqxhr.fail(function(data) {
-        promptAlert($('#graphContainer'), 'Error: submitted query text but got error return (' + data + ')', true);
+
+      $.ajax({
+        url: neo4jAPIURL,
+        data: body,
+        dataType: "json",
+        contentType: "application/json;charset=UTF-8",
+        type: 'POST',
+        crossDomain: true,
+        error: function(data) { promptAlert($('#graphContainer'), 'Error: ' + data.errors[0].message + '(' + data.errors[0].code + ')', true); },
+        beforeSend: function (xhr) {
+          xhr.setRequestHeader ("Authorization", "Basic " + btoa(neo4jLogin+ ":" + neo4jPassword));
+        }
+      })
+      .done(function(data){
+        if (data.results != null && data.results.length > 0 && data.results[0].data != null && data.results[0].data.length > 0) {
+        var neo4jDataItmArray = data.results[0].data;
+          neo4jDataItmArray.forEach(function(dataItem) {
+            //Node
+            if (dataItem.graph.nodes != null && dataItem.graph.nodes.length > 0) {
+              var neo4jNodeItmArray = dataItem.graph.nodes;
+              neo4jNodeItmArray.forEach(function(nodeItm) {
+                if (!(nodeItm.id in nodeItemMap)){
+                  nodeItemMap[nodeItm.id] = nodeItm;
+                  if (contributionDist[nodeItm.properties.contribution])
+                    contributionDist[nodeItm.properties.contribution] += 1;
+                  else contributionDist[nodeItm.properties.contribution] = 1;
+                }
+              });
+            }
+            contributionDist['undefined'] = 0;
+            //Link
+            if (dataItem.graph.relationships != null && dataItem.graph.relationships.length > 0) {
+              var neo4jLinkItmArray = dataItem.graph.relationships;
+              neo4jLinkItmArray.forEach(function(linkItm) {
+                if (!(linkItm.id in linkItemMap)) {
+                  linkItm.source = linkItm.startNode;
+                  linkItm.target = linkItm.endNode;
+                  linkItemMap[linkItm.id] = linkItm;
+                }
+              });
+            }
+          });
+          showProperties();
+          updateGraph();   
+        }
       });
-    }
+      updateGraph(); 
+    } 
+
     function classifyNodeFamiliarity(d) {
       if (d.properties.contribution)
         return "familiarPaper"
@@ -568,7 +599,16 @@
       } else {
         return "vanilla";
       }
+    }
 
+    function classifyComparisonType(d) {
+      if (d.properties.comparison_type == "former")
+        return "former";
+      if (d.properties.comparison_type == "parallel")
+        return "parallel";
+      if (d.properties.comparison_type == "foreign")
+        return "foreign";
+      return "highlightonly";
     }
 
     function getItemColor(d) {
@@ -576,6 +616,12 @@
       if (!(nodeClass in itemColorMap))
         itemColorMap[nodeClass] = colorScale(nodeClass);
       return itemColorMap[nodeClass];
+    }
+
+    function getPieColor(d) {
+      if (!(d in pieColor))
+        pieColor[d] = pieColor(d);
+      return pieColor[d];
     }
 
     function getFirstStrokeColor(d) {
@@ -590,6 +636,13 @@
       if (!(benchmarkState in itemColorMap))
         itemColorMap[benchmarkState] = colorScale(benchmarkState);
       return itemColorMap[benchmarkState];
+    }
+
+    function getComparisonTypeColor(d) {
+      var comparisonType = classifyComparisonType(d);
+      if (!(comparisonType in itemColorMap))
+        itemColorMap[comparisonType] = colorScale(comparisonType);
+      return itemColorMap[comparisonType];
     }
 
     function getColorBrighter(targetColor) {
@@ -644,7 +697,92 @@
           promptAlert($('#graphContainer'), 'Highlights back to normal.', false)
         }
       });
+      $('#chkboxActivateColor').change(function() {
+        if (this.checked) {
+          colorMode = true;
+          submitQuery();
+          promptAlert($('#graphContainer'), 'Nodes colored by Contribution.', false);
+        }
+        else {
+          colorMode = false;
+          submitQuery();
+          promptAlert($('#graphContainer'), 'Node colors back to normal.', false)
+        }
+      });
     });
+
+
+var radius = Math.min(pie_width, pie_height) / 2 - pie_margin
+
+// append the svg object to the div called 'my_dataviz'
+
+
+
+
+
+function updatePie() {
+  d3.selectAll("#propertySvg > *").remove(); 
+
+  var property_svg = d3.select("#propertySvg")
+    .attr("width", pie_width)
+    .attr("height", pie_height)
+    .append("g")
+      .attr("transform", "translate(" + pie_width / 2 + "," + pie_height / 2 + ")");
+
+  var pie = d3.pie()
+    .value(function(d) { return d.value; })
+  var data_ready = pie(d3.entries(contributionDist))
+
+// Build the pie chart: Basically, each part of the pie is a path that we build using the arc function.
+  property_svg
+    .data(data_ready)
+    .enter()
+    .append('path')
+    .attr('d', d3.arc()
+      .innerRadius(0)
+      .outerRadius(radius)
+    )
+    .style("opacity", 0.7)
+
+  // Compute the position of each group on the pie:
+  var pie = d3.pie()
+    .value(function(d) {return d.value; })
+    .sort(function(a, b) {return d3.ascending(a.key, b.key);} ) // This make sure that group order remains the same in the pie chart
+  var data_ready = pie(d3.entries(contributionDist))
+
+  var arcGenerator = d3.arc()
+    .outerRadius(radius - 10)
+    .innerRadius(0);
+
+  var label = d3.arc()
+    .outerRadius(radius * 0.9)
+    .innerRadius(radius * 0.9);
+    // map to data
+  var u = property_svg.selectAll("path")
+    .data(data_ready)
+
+  // Build the pie chart: Basically, each part of the pie is a path that we build using the arc function.
+  u
+    .enter()
+    .append('path')
+    .attr('d', arcGenerator)
+    .style('fill', function(d){ return( getPieColor(d.data.key)) });
+
+  u
+  .data(data_ready)
+  .enter()
+  .append('text')
+  .text(function(d){ return d.data.key})
+  .attr("transform", function(d) { return "translate(" + label.centroid(d) + ")";  })
+  .style("text-anchor", "middle")
+  .style("font-size", ".9em")
+
+  u
+    .exit()
+    .remove()
+
+}
+
   </script>
 </body>
 </html>
